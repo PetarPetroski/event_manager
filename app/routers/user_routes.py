@@ -58,7 +58,7 @@ async def get_user(user_id: UUID, request: Request, db: AsyncSession = Depends(g
         last_login_at=user.last_login_at,
         created_at=user.created_at,
         updated_at=user.updated_at,
-        links=create_user_links(user.id, request)  
+        links=create_user_links(user.id, request)
     )
 
 # Additional endpoints for update, delete, create, and list users follow a similar pattern, using
@@ -109,7 +109,7 @@ async def delete_user(user_id: UUID, db: AsyncSession = Depends(get_async_db), t
 
 
 
-@router.post("/users/", response_model=UserResponse, status_code=status.HTTP_201_CREATED, tags=["User Management"], name="create_user")
+@router.post("/users/", response_model=UserResponse, status_code=status.HTTP_200_OK, tags=["User Management"], name="create_user")
 async def create_user(user: UserCreate, request: Request, db: AsyncSession = Depends(get_async_db), token: str = Depends(oauth2_scheme)):
     """
     Create a new user.
@@ -129,12 +129,12 @@ async def create_user(user: UserCreate, request: Request, db: AsyncSession = Dep
     existing_user = await UserService.get_by_username(db, user.username)
     if existing_user:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Username already exists")
-    
+
     created_user = await UserService.create(db, user.model_dump())
     if not created_user:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Failed to create user")
-    
-    
+
+
     return UserResponse.model_construct(
         id=created_user.id,
         bio=created_user.bio,
@@ -195,7 +195,7 @@ async def login(login_request: LoginRequest, session: AsyncSession = Depends(get
     if user:
         # Generate a token for the user. You need to implement create_access_token.
         access_token_expires = timedelta(minutes=settings.access_token_expire_minutes)
-    
+
         # Generate an access token
         access_token = create_access_token(
         data={"sub": user.username},  # 'sub' (subject) field to identify the user
