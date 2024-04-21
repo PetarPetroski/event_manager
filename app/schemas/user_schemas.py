@@ -1,54 +1,26 @@
+from typing import List, Optional
+from pydantic import BaseModel, Field, EmailStr, HttpUrl, validator
+from datetime import datetime
+import re
+from urllib.parse import urlparse
+import uuid
 
-"""
-File: user_schemas.py
+# Define a model for user links
+class Link(BaseModel):
+    rel: str
+    href: str
 
-Overview:
-This file contains Pydantic models that define the structure, validation, serialization, and deserialization of data for user-related operations in a FastAPI application. These models ensure data integrity and security by enforcing constraints and patterns using Python type annotations and regular expressions. The models also contribute to automatic API documentation generation compatible with the OpenAPI specification.
+# Define a model for paginated list of user responses, including pagination details
+class EnhancedPagination(BaseModel):
+    currentPage: int = Field(..., description="The current page number.")
+    totalPages: int = Field(..., description="The total number of pages.")
+    totalItems: int = Field(..., description="The total number of items.")
+    links: List[Link] = Field(..., description="Navigational links for pagination.")
 
-Pydantic and Data Validation:
-Pydantic is a Python library for data validation and settings management using Python type annotations. It ensures that the data received from HTTP requests conforms to the expected structure and types, which is crucial for the security and stability of the application. The models in this file use Pydantic's BaseModel as a base class and define fields with specific types and constraints.
-
-Regular Expressions for Validation:
-Regular expressions (regex) are used extensively in the models to define patterns for validating strings, such as usernames and passwords. They provide a powerful way to specify rules for string characters, lengths, and compositions, which are critical for maintaining security standards. For example, the validate_username function uses a regex to ensure that the username only contains letters, numbers, underscores, and hyphens, while the validate_password function checks for password complexity requirements.
-
-Inheritance and Code Reusability:
-The models in this file demonstrate the use of inheritance to promote code reusability and maintainability. The UserBase model serves as a base class that defines common fields and validations, which are then inherited by more specific models like UserCreate, UserUpdate, and UserResponse. This approach reduces code duplication and ensures consistency across different parts of the application.
-
-Model-Specific Functionality:
-Each model in this file serves a specific purpose within the application:
-
-UserBase: Defines the base structure and validations for user data, including username, email, full name, bio, and profile picture URL.
-UserCreate: Extends UserBase and adds a password field for creating new user accounts, with additional validation for password complexity.
-UserUpdate: Defines the structure for updating user information, with all fields being optional.
-UserResponse: Extends UserBase and includes additional fields that are populated during database queries, such as the user ID, last login timestamp, and creation/update timestamps. It also includes navigational links for HATEOAS compliance.
-UserListResponse: Defines the structure for a paginated list of user responses, including the list of users and pagination details.
-LoginRequest: Defines the structure for user login requests, including the username and password fields.
-ErrorResponse: Defines the structure for error responses, including an error message and optional details.
-HATEOAS and OpenAPI Integration:
-The UserResponse model includes a links field that contains navigational links related to the user resource, following the HATEOAS (Hypermedia as the Engine of Application State) principle. These links allow clients to discover and navigate through the API dynamically. The models also contribute to the automatic generation of API documentation using FastAPI's integration with the OpenAPI specification, providing a clear and interactive documentation for developers and API consumers.
-
-Security Best Practices:
-The models in this file enforce several security best practices:
-
-Input Validation: The models validate incoming data using Pydantic's type annotations and custom validators, ensuring that only properly formatted and constrained data is processed by the application. This helps prevent common security threats like SQL injection and cross-site scripting (XSS).
-Password Security: The UserCreate model enforces strong password policies using regex-based validators, reducing the risk of weak passwords and potential brute-force attacks.
-Data Serialization and Deserialization: Pydantic handles the secure conversion of data between JSON and Python objects, mitigating risks associated with manual serialization and deserialization.
-Overall, the use of Pydantic models in this file contributes to building a secure, validated, and well-documented API for user-related operations in a FastAPI application. The combination of type annotations, regex-based validators, and inheritance promotes code reusability, maintainability, and adherence to security best practices.
-"""
-# Import required libraries and modules
-from datetime import datetime, timezone  # Provides classes for manipulating dates and times in both simple and complex ways.
-from urllib.parse import urlparse  # Functions for breaking down and reconstructing URLs.
-from pydantic import BaseModel, EmailStr, Field, HttpUrl, validator  # Pydantic is used for data validation and settings management using Python type annotations.
-from typing import List, Optional  # Standard library typing module, used for constructing complex type hints.
-from app.schemas.link_schema import Link  # Custom module, likely provides a schema for links (part of HATEOAS).
-from app.schemas.pagination_schema import EnhancedPagination  # Custom pagination schema supporting enriched functionality.
-import re  # Provides regular expression matching operations.
-import uuid  # Provides immutable UUID objects and functions for generating new UUIDs.
-
-# Define a base user model with common attributes
+# Define a base model for user information
 class UserBase(BaseModel):
     username: str = Field(
-        ...,  # Ellipsis is used to indicate that the field is required.
+        ...,
         min_length=3,
         max_length=50,
         description="The unique username of the user. Must be 3-50 characters long. Only letters, numbers, underscores, and hyphens are allowed.",
@@ -71,13 +43,12 @@ class UserBase(BaseModel):
         description="A short biography or description of the user.",
         example="I am a software engineer with over 5 years of experience in building scalable web applications using Python and JavaScript."
     )
-    profile_picture_url: Optional[str] = Field(
+    profile_picture_url: Optional[HttpUrl] = Field(
         None,
         description="The URL to the user's profile picture. Must point to a valid image file (e.g., JPEG, PNG).",
         example="https://example.com/profile_pictures/john_doe.jpg"
     )
 
-    # Validators are used to validate the data
     @validator('username')
     def validate_username(cls, v):
         if not re.match(r"^[a-zA-Z0-9_-]+$", v):
@@ -140,10 +111,11 @@ class UserCreate(UserBase):
                 "email": "john.doe@example.com",
                 "password": "SecurePassword123!",
                 "full_name": "John Doe",
-                "bio": "I am a software engineer with over 5 years of experience in building scalable web applications using Python and JavaScript.",
-                "profile_picture_url": "https://example.com/profile_pictures/john_doe.jpg"
+                "bio": "I am a data scientist passionate about machine learning and big data analytics.",
+                "profile_picture_url": "https://example.com/profile_pictures/jane_smith.jpg"
             }
         }
+
 
 # Define a model for updating user information with optional fields
 class UserUpdate(BaseModel):
@@ -170,6 +142,7 @@ class UserUpdate(BaseModel):
         example="https://example.com/profile_pictures/john_doe_updated.jpg"
     )
 
+
     @validator('profile_picture_url', pre=True, always=True)
     def validate_profile_picture_url(cls, v):
         if v is not None:
@@ -177,6 +150,7 @@ class UserUpdate(BaseModel):
             if not re.search(r"\.(jpg|jpeg|png)$", parsed_url.path):
                 raise ValueError("Profile picture URL must point to a valid image file (JPEG, PNG).")
         return v
+
 
     class Config:
         json_schema_extra = {
@@ -188,6 +162,7 @@ class UserUpdate(BaseModel):
                 "profile_picture_url": "https://example.com/profile_pictures/john_doe_updated.jpg"
             }
         }
+
 
 # Define a model for the user response, which includes fields populated during queries
 class UserResponse(UserBase):
@@ -251,7 +226,8 @@ class UserResponse(UserBase):
             }
         }
 
-# Define a model for paginated list of user responses, including pagination details
+
+# Define a model for a paginated list of user responses, including pagination details
 class UserListResponse(BaseModel):
     items: List[UserResponse] = Field(
         ...,
@@ -261,6 +237,7 @@ class UserListResponse(BaseModel):
         ...,
         description="Pagination details including the current page, total pages, total items, and navigational links."
     )
+
 
     class Config:
         json_schema_extra = {
@@ -313,6 +290,7 @@ class UserListResponse(BaseModel):
             }
         }
 
+
 # Define a model for user login requests
 class LoginRequest(BaseModel):
     username: str = Field(
@@ -326,6 +304,7 @@ class LoginRequest(BaseModel):
         example="SecurePassword123!"
     )
 
+
     class Config:
         json_schema_extra = {
             "description": "Model for user login request.",
@@ -334,6 +313,7 @@ class LoginRequest(BaseModel):
                 "password": "SecurePassword123!"
             }
         }
+
 
 # Define a model for error responses in case of issues
 class ErrorResponse(BaseModel):
@@ -347,6 +327,7 @@ class ErrorResponse(BaseModel):
         description="Additional details about the error, if available.",
         example="The provided username does not exist or the password is incorrect."
     )
+
 
     class Config:
         json_schema_extra = {
