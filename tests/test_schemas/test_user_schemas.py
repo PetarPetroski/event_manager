@@ -85,4 +85,4 @@ def test_user_base_username_valid(username, user_base_data):
 def test_user_base_username_invalid(username, user_base_data):
     user_base_data["username"] = username
     with pytest.raises(ValidationError):
-        UserBase(**user_base_data)
+        UserCreate(**user_create_data)
