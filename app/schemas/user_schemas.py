@@ -121,16 +121,14 @@ class UserCreate(UserBase):
     )
 
     @validator('password')
-    def validate_password(cls, v):
-        if len(v) < 8:
-            raise ValueError("Password must be at least 8 characters long.")
-        if not re.search(r"[A-Z]", v):
+    def validate_password_strength(cls, v):
+        if not any(char.isupper() for char in v):
             raise ValueError("Password must contain at least one uppercase letter.")
-        if not re.search(r"[a-z]", v):
+        if not any(char.islower() for char in v):
             raise ValueError("Password must contain at least one lowercase letter.")
-        if not re.search(r"\d", v):
+        if not any(char.isdigit() for char in v):
             raise ValueError("Password must contain at least one digit.")
-        if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", v):
+        if not any(char in "!@#$%^&*(),.?\":{}|<>" for char in v):
             raise ValueError("Password must contain at least one special character.")
         return v
 
